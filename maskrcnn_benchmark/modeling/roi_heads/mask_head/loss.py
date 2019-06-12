@@ -10,12 +10,13 @@ from maskrcnn_benchmark.modeling.utils import cat
 import numpy as np
 
 def project_masks_on_boxes(segmentation_masks, proposals, discretization_size, maskiou_on):
+
     """
     Given segmentation masks and the bounding boxes corresponding
     to the location of the masks in the image, this function
     crops and resizes the masks in the position defined by the
     boxes. This prepares the masks for them to be fed to the
-    loss computation as the targets. If use maskiou head, we will compute the maskiou target here.
+    loss computation as the targets.
 
     Arguments:
         segmentation_masks: an instance of SegmentationMask
@@ -29,30 +30,28 @@ def project_masks_on_boxes(segmentation_masks, proposals, discretization_size, m
     assert segmentation_masks.size == proposals.size, "{}, {}".format(
         segmentation_masks, proposals
     )
-    # TODO put the proposals on the CPU, as the representation for the
-    # masks is not efficient GPU-wise (possibly several small tensors for
-    # representing a single instance mask)
+
+    # FIXME: CPU computation bottleneck, this should be parallelized
     proposals = proposals.bbox.to(torch.device("cpu"))
     for segmentation_mask, proposal in zip(segmentation_masks, proposals):
         # crop the masks, resize them to the desired resolution and
-        # then convert them to the tensor representation,
-        # instead of the list representation that was used
+        # then convert them to the tensor representation.
         cropped_mask = segmentation_mask.crop(proposal)
         scaled_mask = cropped_mask.resize((M, M))
-        mask = scaled_mask.convert(mode="mask")
+        mask = scaled_mask.get_mask_tensor()
         masks.append(mask)
         if maskiou_on:
-            
             x1 = int(proposal[0])
             y1 = int(proposal[1])
             x2 = int(proposal[2]) + 1
             y2 = int(proposal[3]) + 1
-            for poly_ in segmentation_mask.polygons:
-                poly = np.array(poly_, dtype=np.float32)
-                x1 = np.minimum(x1, poly[0::2].min())
-                x2 = np.maximum(x2, poly[0::2].max())
-                y1 = np.minimum(y1, poly[1::2].min())
-                y2 = np.maximum(y2, poly[1::2].max())
+            for poly_obj in segmentation_masks.instances.polygons:
+                for poly_ in poly_obj.polygons:
+                    poly = np.array(poly_, dtype=np.float32)
+                    x1 = np.minimum(x1, poly[0::2].min())
+                    x2 = np.maximum(x2, poly[0::2].max())
+                    y1 = np.minimum(y1, poly[1::2].min())
+                    y2 = np.maximum(y2, poly[1::2].max())
             img_h = segmentation_mask.size[1]
             img_w = segmentation_mask.size[0]
             x1 = np.maximum(x1, 0)
@@ -69,9 +68,9 @@ def project_masks_on_boxes(segmentation_masks, proposals, discretization_size, m
             mask_ratio = gt_box_mask_area / gt_img_mask_area
             '''
             #type 2
-            rle_for_fullarea = mask_util.frPyObjects([p.numpy() for p in segmentation_mask_for_maskratio.polygons], y2-y1, x2-x1)
+            rle_for_fullarea = mask_util.frPyObjects([p.numpy() for po in segmentation_mask_for_maskratio.instances.polygons for p in po.polygons], y2-y1, x2-x1)
             full_area = torch.tensor(mask_util.area(rle_for_fullarea).sum().astype(float))
-            rle_for_box_area = mask_util.frPyObjects([p.numpy() for p in cropped_mask.polygons], proposal[3]-proposal[1], proposal[2]-proposal[0])
+            rle_for_box_area = mask_util.frPyObjects([p.numpy() for po in cropped_mask.instances.polygons for p in po.polygons], proposal[3]-proposal[1], proposal[2]-proposal[0])
             box_area = torch.tensor(mask_util.area(rle_for_box_area).sum().astype(float))
             mask_ratio = box_area / full_area
             
@@ -81,8 +80,10 @@ def project_masks_on_boxes(segmentation_masks, proposals, discretization_size, m
     else:
         mask_ratios = None
     if len(masks) == 0:
-        return torch.empty(0, dtype=torch.float32, device=device), torch.empty(0, dtype=torch.float32, device=device)
+        return torch.empty(0, dtype=torch.float32, device=device)
     return torch.stack(masks, dim=0).to(device, dtype=torch.float32), mask_ratios
+
+
 
 class MaskRCNNLossComputation(object):
     def __init__(self, proposal_matcher, discretization_size, maskiou_on):
@@ -149,7 +150,6 @@ class MaskRCNNLossComputation(object):
             proposals (list[BoxList])
             mask_logits (Tensor)
             targets (list[BoxList])
-
         Return:
             mask_loss (Tensor): scalar tensor containing the loss
             If we use maskiou head, we will return extra feature for maskiou head.

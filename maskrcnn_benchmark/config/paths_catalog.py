@@ -4,8 +4,9 @@
 import os
 
 
+
 class DatasetCatalog(object):
-    DATA_DIR = "datasets"
+    DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)+'/../../') , "datasets")
     DATASETS = {
         "coco_2017_train": {
             "img_dir": "coco/train2017",

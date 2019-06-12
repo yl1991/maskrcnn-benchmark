@@ -28,6 +28,7 @@ _C.MODEL.RETINANET_ON = False
 _C.MODEL.KEYPOINT_ON = False
 _C.MODEL.DEVICE = "cuda"
 _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
+_C.MODEL.MASKIOU_LOSS_WEIGHT = 1.0
 _C.MODEL.CLS_AGNOSTIC_BBOX_REG = False
 
 # If the WEIGHT starts with a catalog://, like :R-50, the code will look for

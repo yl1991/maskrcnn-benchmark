@@ -4,6 +4,8 @@ import torch
 from .box_head.box_head import build_roi_box_head
 from .mask_head.mask_head import build_roi_mask_head
 from .keypoint_head.keypoint_head import build_roi_keypoint_head
+from .maskiou_head.maskiou_head import build_roi_maskiou_head
+
 
 
 class CombinedROIHeads(torch.nn.ModuleDict):
@@ -75,6 +77,8 @@ def build_roi_heads(cfg, in_channels):
         roi_heads.append(("box", build_roi_box_head(cfg, in_channels)))
     if cfg.MODEL.MASK_ON:
         roi_heads.append(("mask", build_roi_mask_head(cfg, in_channels)))
+        if cfg.MODEL.MASKIOU_ON:
+            roi_heads.append(("maskiou", build_roi_maskiou_head(cfg)))
     if cfg.MODEL.KEYPOINT_ON:
         roi_heads.append(("keypoint", build_roi_keypoint_head(cfg, in_channels)))
 

@@ -1,4 +1,5 @@
 from torch import nn
+import torch
 from torch.nn import functional as F
 
 from maskrcnn_benchmark.modeling import registry
@@ -9,6 +10,7 @@ from maskrcnn_benchmark.layers import Conv2d
 class MaskIoUFeatureExtractor(nn.Module):
 
     def __init__(self, cfg, input_channels=257):
+        super(MaskIoUFeatureExtractor, self).__init__()
 
         self.maskiou_fcn1 = Conv2d(input_channels, 256, 3, 1, 1)
         self.maskiou_fcn2 = Conv2d(256, 256, 3, 1, 1)

@@ -1,7 +1,6 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
   WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
-  PRETRAINED_MODELS: 'pretrained_models'
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
